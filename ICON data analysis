@@ -10,9 +10,15 @@ library(Thermimage)
 library (dplyr)
 
 #load raw data from csv files
-Ca2<-read.csv('/Volumes/rileyHD/VTA4G_ex4_coc/Data/VTA4G_ex-4_coc _ Ca2Data .csv')
-events <- read.csv('/Volumes/rileyHD/VTA4G_ex4_coc/Data/VTA4G_ex-4_coc _ BehData .csv')
+Ca2<-read.csv('raw signal.csv')
+events <- read.csv('behavioraldata.csv')
 
+#raw signal trace (blue = 465nm, purple = 405nm)
+ggplot()+
+  geom_line(aes(x = Ca2$TimeStamp, y=Ca2$Signal), color = "blue")+
+  geom_line(aes(x = Ca2$TimeStamp, y=Ca2$Control), color= "purple" )+
+  xlab("Time") + ylab("mV")
+  
 #R regression formula is lm(y~x, data = dataframe)
 #y is the signal channel, x is the control channel ---> lm is now our data table with the regression coefficient results 
 lm<- lm(Signal ~ Control, data=Ca2)
@@ -26,12 +32,14 @@ fitted<-Ca2%>%
 df_f <- fitted%>%
   mutate(df=(Signal- predicted_signal)/predicted_signal)
 
+#plot df/f
+ggplot()+
+  geom_line(aes(x = df_f$TimeStamp, y=df_f$df), color = "green")+
+  xlab("Time") + ylab("df/f")
 
 #parse out whatever your event of interest is... in this case we are interested in infusions
-infusions <- events %>% filter(Event == "inf11")
+infusions <- events %>% filter(Event == "EVENT NAME")
 infusions <- infusions$Onset
-infusions<- infusions[-1] 
-infusion_values<- infusions
 
 #loop through each infusion value, z-score data and put into result_list
 result_list <- list()
@@ -48,7 +56,7 @@ r <- sd(g$df)
 t<- t %>% mutate(z_score=(df - ( s))/  (r) ) %>% 
   mutate(time = (TimeStamp- infusion_value))
 
-#downsampling (optional averaging step) 
+#optional downsampling
 z_score <- meanEveryN(t$z_score,300)
 time <- meanEveryN(t$time,300)
 binned_trace <- data.frame(time, z_score)
@@ -66,5 +74,5 @@ for (i in seq_along(result_list)) {
 combined_data <- Reduce(function(x, y) full_join(x, y, by = "time"), result_list)
 colnames(combined_data) <- c("time", paste0("z_score_", 1:length(result_list)))
 
-write.csv(combined_data, "//Users/rileymerkel/Downloads/VTA4G_ex4_coc_.csv", row.names=FALSE)
+write.csv(combined_data, "exported z-scored data.csv", row.names=FALSE)
 
